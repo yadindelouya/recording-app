@@ -1,0 +1,150 @@
+
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>הקלטת וידאו</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #C0EDFF;
+      color: #2C2C2C;
+      text-align: center;
+      direction: rtl;
+      padding: 30px;
+    }
+    h2 {
+      color: #2C2C2C;
+      margin-bottom: 20px;
+    }
+    video {
+      width: 100%;
+      max-width: 500px;
+      border: 4px solid #F7F5F0;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 18px;
+      margin: 10px;
+      border: none;
+      border-radius: 6px;
+      background-color: #F7F5F0;
+      color: #2C2C2C;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #ccc;
+      color: #888;
+    }
+    #countdown {
+      font-size: 48px;
+      font-weight: bold;
+      color: #2C2C2C;
+      margin: 10px 0;
+    }
+    #timer {
+      font-size: 18px;
+      color: #2C2C2C;
+      margin-top: 10px;
+    }
+    #footerButtons {
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+  <h2>ראיון אישי מוקלט</h2>
+  <div id="countdown"></div>
+  <video id="preview" autoplay muted playsinline></video>
+  <div>
+    <button id="startBtn">התחל הקלטה</button>
+    <button id="stopBtn" disabled>עצור ושמור</button>
+  </div>
+  <div id="timer">משך הקלטה: 00:00</div>
+
+  <div id="footerButtons">
+    <button onclick="alert('שירות הענן יהיה זמין בהמשך 🎯')">שמור בענן</button>
+    <button onclick="window.location.href='#'">חזרה לאפליקציה</button>
+  </div>
+
+  <script>
+    let mediaRecorder, timerInterval, seconds = 0;
+    let recordedChunks = [];
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const video = document.getElementById('preview');
+    const countdownEl = document.getElementById('countdown');
+    const timerEl = document.getElementById('timer');
+
+    async function setupCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        video.srcObject = stream;
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = function (e) {
+          if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = function () {
+          clearInterval(timerInterval);
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'recording.webm';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        };
+      } catch (err) {
+        alert('שגיאה בגישה למצלמה/מיקרופון: ' + err.message);
+      }
+    }
+
+    function updateTimer() {
+      seconds++;
+      let min = String(Math.floor(seconds / 60)).padStart(2, '0');
+      let sec = String(seconds % 60).padStart(2, '0');
+      timerEl.textContent = 'משך הקלטה: ' + min + ':' + sec;
+    }
+
+    function startCountdown(callback) {
+      let count = 3;
+      countdownEl.textContent = count;
+      const interval = setInterval(() => {
+        count--;
+        if (count === 0) {
+          clearInterval(interval);
+          countdownEl.textContent = '';
+          callback();
+        } else {
+          countdownEl.textContent = count;
+        }
+      }, 1000);
+    }
+
+    startBtn.onclick = () => {
+      recordedChunks = [];
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      seconds = 0;
+      startCountdown(() => {
+        mediaRecorder.start();
+        timerInterval = setInterval(updateTimer, 1000);
+      });
+    };
+
+    stopBtn.onclick = () => {
+      mediaRecorder.stop();
+      stopBtn.disabled = true;
+      startBtn.disabled = false;
+    };
+
+    setupCamera();
+  </script>
+</body>
+</html>
